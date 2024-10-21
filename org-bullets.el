@@ -68,37 +68,31 @@ Otherwise the face of the heading level is used."
 (defvar org-bullets-bullet-map (make-sparse-keymap))
 
 (defun org-bullets-level-char (level)
-  "Return the desired bullet for the given heading LEVEL."
-  (string-to-char
-   (nth (mod (/ (1- level) (if org-odd-levels-only 2 1))
-             (length org-bullets-bullet-list))
-        org-bullets-bullet-list)))
+  "Return the appropriate bullet for the given heading LEVEL."
+  (let* ((step (if org-odd-levels-only 2 1))
+         (index (mod (/ (1- level) step) (length org-bullets-bullet-list))))
+    (string-to-char (nth index org-bullets-bullet-list))))
 
 (defvar org-bullets--keywords
   `(("^\\*+ "
-     (0 (let* ((level (- (match-end 0) (match-beginning 0) 1))
-               (is-inline-task
-                (and (boundp 'org-inlinetask-min-level)
-                     (>= level org-inlinetask-min-level))))
-          (compose-region (- (match-end 0) 2)
-                          (- (match-end 0) 1)
-                          (org-bullets-level-char level))
+     (0 (let* ((heading-start (match-beginning 0))
+               (heading-end (match-end 0))
+               (level (- heading-end heading-start 1))
+               (is-inline-task (and (boundp 'org-inlinetask-min-level)
+                                    (>= level org-inlinetask-min-level)))
+               (bullet-start (1- heading-end))
+               (bullet-end (- heading-end 2))
+               (bullet-char (org-bullets-level-char level)))
+          (compose-region bullet-end bullet-start
+                          bullet-char)
           (when is-inline-task
-            (compose-region (- (match-end 0) 3)
-                            (- (match-end 0) 2)
-                            (org-bullets-level-char level)))
+            (compose-region (- heading-end 3) bullet-end bullet-char))
           (when (facep org-bullets-face-name)
-            (put-text-property (- (match-end 0)
-                                  (if is-inline-task 3 2))
-                               (- (match-end 0) 1)
-                               'face
+            (put-text-property (- heading-end (if is-inline-task 3 2))
+                               bullet-start 'face
                                org-bullets-face-name))
-          (put-text-property (match-beginning 0)
-                             (- (match-end 0) 2)
-                             'face 'org-hide)
-          (put-text-property (match-beginning 0)
-                             (match-end 0)
-                             'keymap
+          (put-text-property heading-start bullet-end 'face 'org-hide)
+          (put-text-property heading-start heading-end 'keymap
                              org-bullets-bullet-map)
           nil)))))
 
